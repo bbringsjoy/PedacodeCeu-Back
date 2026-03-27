@@ -1,12 +1,12 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database";
 
-class User extends Model {
+class Usuarios extends Model {
   public id!: number;
   public name!: string;
 }
 
-User.init(
+Usuarios.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -24,4 +24,4 @@ User.init(
   },
 );
 
-export default User;
+export default Usuarios;
