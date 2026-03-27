@@ -2,11 +2,11 @@ import { Sequelize } from "sequelize";
 
 const sequelize = new Sequelize(
     "pedacodoceu",
-    "postgres",
+    "mysql", //ou postgres
     "mysecretpassword",
     {
         host: 'localhost',
-        port: 5432,
+        port: 3306,
         dialect: 'mysql', 
         logging: true
     }

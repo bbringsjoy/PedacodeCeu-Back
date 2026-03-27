@@ -1,59 +1,77 @@
-import { Request, Response } from "express";
-import Categoria from "../models/Categoria";
+import { Request, Response } from 'express'
+import Categoria from '../models/Categoria'
+import { parsePagination } from '../utils/validations'
+import { CategoriaCreate, CategoriaUpdate } from '../types'
 
-class CategoriasController {
-  static async listarTodas(req: Request, res: Response) {
-    const categorias = await Categoria.findAll();
-    return res.status(200).send(categorias);
+class CategoriaController {
+  static async findAll(req: Request, res: Response) {
+    const { page, limit } = req.query as { page?: string; limit?: string }
+    const { skip, take } = parsePagination(page, limit)
+
+    const { rows: categorias, count: total } = await Categoria.findAndCountAll({
+      offset: skip,
+      limit: take
+    })
+
+    return res.status(200).json({ data: categorias, total, page: Number(page || 1), limit: take })
   }
 
-  static async buscarPorId(req: Request, res: Response) {
-    const { id } = req.params;
-    const categoria = await Categoria.findByPk(Number(id));
+  static async getById(req: Request, res: Response) {
+    const id = String(req.params.id)
 
-    if (categoria) {
-      return res.status(200).send(categoria);
-    } else {
-      return res.status(404).json({ message: "Categoria não encontrada" });
+    const categoria = await Categoria.findByPk(id)
+
+    if (!categoria) {
+      return res.status(404).json({ message: 'Categoria não encontrada' })
     }
+
+    return res.status(200).json(categoria)
   }
 
-  static async criar(req: Request, res: Response) {
-    const { nome } = req.body;
+  static async create(req: Request, res: Response) {
+    const { nome }: CategoriaCreate = req.body
 
-    if (!nome || nome === '') {
-      return res.status(400).json({ message: "Nome da categoria é obrigatório!" });
+    if (!nome || nome.trim() === '') {
+      return res.status(400).json({ message: 'Nome é obrigatório' })
     }
 
-    const categoria = await Categoria.create({ nome });
-    return res.status(201).send(categoria);
+    const categoria = await Categoria.create({ nome })
+
+    return res.status(201).json(categoria)
   }
 
-  static async atualizar(req: Request, res: Response) {
-    const { id } = req.params;
-    const { nome } = req.body;
+  static async update(req: Request, res: Response) {
+    const id = String(req.params.id)
+    const { nome }: CategoriaUpdate = req.body
 
-    const categoria = await Categoria.findByPk(Number(id));
+    const categoria = await Categoria.findByPk(id)
 
-    if (categoria) {
-      await categoria.update({ nome });
-      return res.status(200).send(categoria);
-    } else {
-      return res.status(404).json({ message: "Categoria não encontrada" });
+    if (!categoria) {
+      return res.status(404).json({ message: 'Categoria não encontrada' })
     }
+
+    if (!nome || nome.trim() === '') {
+      return res.status(400).json({ message: 'Nome é obrigatório' })
+    }
+
+    await categoria.update({ nome })
+
+    return res.status(200).json(categoria)
   }
 
-  static async remover(req: Request, res: Response) {
-    const { id } = req.params;
-    const categoria = await Categoria.findByPk(Number(id));
+  static async remove(req: Request, res: Response) {
+    const id = String(req.params.id)
 
-    if (categoria) {
-      await categoria.destroy();
-      return res.status(204).send();
-    } else {
-      return res.status(404).json({ message: "Categoria não encontrada" });
+    const categoria = await Categoria.findByPk(id)
+
+    if (!categoria) {
+      return res.status(404).json({ message: 'Categoria não encontrada' })
     }
+
+    await categoria.destroy()
+
+    return res.status(204).send()
   }
 }
 
-export default CategoriasController;
+export default CategoriaController
