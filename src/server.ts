@@ -1,10 +1,16 @@
 import app from "./app";
 import sequelize from "./config/database";
 
-const port = 3000;
+import "./models/Usuario";
+import "./models/Categoria";
+import "./models/Produto";
 
-sequelize.sync({alter: true});
+const PORT = process.env.PORT || 3000;
 
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+sequelize.sync({ alter: false }).then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server rodando na porta ${PORT}`);
+  });
+}).catch((err) => {
+  console.error("Erro ao conectar ao banco de dados:", err);
 });
