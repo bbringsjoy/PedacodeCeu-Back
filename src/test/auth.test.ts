@@ -1,5 +1,19 @@
 import request from 'supertest';
 import app from '../app';
+import sequelize from '../config/database';
+import Usuario from '../models/Usuario';
+import bcrypt from 'bcrypt';
+
+beforeAll(async () => {
+  await sequelize.sync({ alter: false });
+  await Usuario.destroy({ where: { email: 'auth@test.com' } });
+  await Usuario.create({
+    nome: 'Auth User',
+    email: 'auth@test.com',
+    senha: await bcrypt.hash('Senha@123', 10),
+    cpf: '356.449.671-59'
+  });
+});
 
 describe('Teste de integração - Auth', () => {
 

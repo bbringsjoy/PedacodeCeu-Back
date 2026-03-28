@@ -3,16 +3,16 @@ import sequelize from "../config/database";
 import Categoria from "./Categoria";
 
 class Produto extends Model {
-  public id!: string;
-  public nome!: string;
-  public descricao!: string;
-  public preco!: number;
-  public imagem!: string | null;
-  public destaque!: boolean;
-  public ativo!: boolean;
-  public categoriaId!: string;
-  public createdAt!: Date;
-  public updatedAt!: Date;
+  declare id: string;
+  declare nome: string;
+  declare descricao: string;
+  declare preco: number;
+  declare imagem: string | null;
+  declare destaque: boolean;
+  declare ativo: boolean;
+  declare categoriaId: string;
+  declare createdAt: Date;
+  declare updatedAt: Date;
 }
 
 Produto.init(

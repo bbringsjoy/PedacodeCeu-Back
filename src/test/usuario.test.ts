@@ -1,12 +1,19 @@
 import request from 'supertest';
 import app from '../app';
+import sequelize from '../config/database';
+import Usuario from '../models/Usuario';
+
+beforeAll(async () => {
+  await sequelize.sync({ alter: false });
+  await Usuario.destroy({ where: { cpf: '529.982.247-25' } });
+});
 
 describe('Teste de integração - Usuarios', () => {
 
   test('Criar usuário com dados válidos', async () => {
     const result = await request(app)
       .post('/usuarios')
-      .send({ nome: 'Teste', email: 'novo@test.com', senha: 'Senha@123', cpf: '275.484.389-40' });
+      .send({ nome: 'Teste', email: `teste${Date.now()}@test.com`, senha: 'Senha@123', cpf: '529.982.247-25' });
 
     expect(result.statusCode).toEqual(201);
   });

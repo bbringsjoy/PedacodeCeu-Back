@@ -5,35 +5,39 @@ import Usuario from "../models/Usuario";
 
 class AuthController {
   static async login(req: Request, res: Response) {
-    const { email, senha } = req.body;
+    try {
+      const { email, senha } = req.body;
 
-    if (!email || !validarEmail(email)) {
-      return res.status(400).json({ message: "E-mail inválido" });
+      if (!email || !validarEmail(email)) {
+        return res.status(400).json({ message: "E-mail inválido" });
+      }
+
+      if (!senha) {
+        return res.status(400).json({ message: "Senha é obrigatória" });
+      }
+
+      const usuario = await Usuario.findOne({ where: { email } });
+
+      if (!usuario) {
+        return res.status(401).json({ message: "Credenciais inválidas" });
+      }
+
+      const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
+
+      if (!senhaCorreta) {
+        return res.status(401).json({ message: "Credenciais inválidas" });
+      }
+
+      const token = jwt.sign(
+        { id: usuario.id, email: usuario.email },
+        process.env.JWT_SECRET as string,
+        { expiresIn: "1d" }
+      );
+
+      return res.status(200).json({ token });
+    } catch (err) {
+      return res.status(500).json({ message: "Erro interno" });
     }
-
-    if (!senha) {
-      return res.status(400).json({ message: "Senha é obrigatória" });
-    }
-
-    const usuario = await Usuario.findOne({ where: { email } });
-
-    if (!usuario) {
-      return res.status(401).json({ message: "Credenciais inválidas" });
-    }
-
-    const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
-
-    if (!senhaCorreta) {
-      return res.status(401).json({ message: "Credenciais inválidas" });
-    }
-
-    const token = jwt.sign(
-      { id: usuario.id, email: usuario.email },
-      process.env.JWT_SECRET as string,
-      { expiresIn: "1d" }
-    );
-
-    return res.status(200).json({ token });
   }
 }
 
