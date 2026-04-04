@@ -34,7 +34,15 @@ class AuthController {
         { expiresIn: "1d" }
       );
 
-      return res.status(200).json({ token });
+      return res.status(200).json({
+        token,
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+          cpf: usuario.cpf,
+        },
+      });
     } catch (err) {
       return res.status(500).json({ message: "Erro interno" });
     }

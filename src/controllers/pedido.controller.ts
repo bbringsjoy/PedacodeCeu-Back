@@ -1,20 +1,14 @@
 import { Request, Response } from "express";
 import Pedido from "../models/Pedido";
-import PedidoItem from "../models/Pedido";
+import PedidoItem from "../models/PedidoItem";
 import Produto from "../models/Produto";
 import Usuario from "../models/Usuario";
 
 class PedidoController {
-  // GET /pedidos
+
   async findAll(req: Request, res: Response): Promise<void> {
     try {
-      const pagina = parseInt(req.query.pagina as string) || 1;
-      const limite = parseInt(req.query.limite as string) || 10;
-      const offset = (pagina - 1) * limite;
-
-      const { count, rows } = await Pedido.findAndCountAll({
-        limit: limite,
-        offset,
+      const pedidos = await Pedido.findAll({
         order: [["createdAt", "DESC"]],
         include: [
           {
@@ -29,25 +23,16 @@ class PedidoController {
           },
         ],
       });
-
-      res.json({
-        dados: rows,
-        meta: {
-          total: count,
-          pagina,
-          limite,
-          totalPaginas: Math.ceil(count / limite),
-        },
-      });
+      res.status(200).json(pedidos);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar pedidos", error });
     }
   }
 
-  // GET /pedidos/:id
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const pedido = await Pedido.findByPk(req.params.id, {
+      const id = String(req.params.id);
+      const pedido = await Pedido.findByPk(id, {
         include: [
           {
             model: PedidoItem,
@@ -67,49 +52,64 @@ class PedidoController {
         return;
       }
 
-      res.json(pedido);
+      res.status(200).json(pedido);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar pedido", error });
     }
   }
 
-  // POST /pedidos
   async create(req: Request, res: Response): Promise<void> {
     try {
       const { usuarioId, status, itens } = req.body;
 
-      if (!usuarioId || !itens || itens.length === 0) {
-        res.status(400).json({ message: "usuarioId e itens são obrigatórios" });
+      if (!usuarioId) {
+        res.status(400).json({ message: "usuarioId é obrigatório" });
         return;
       }
 
-      // Calcula o total com base nos produtos reais
+      if (!itens || itens.length === 0) {
+        res.status(400).json({ message: "O pedido deve ter ao menos um item" });
+        return;
+      }
+
       let total = 0;
       for (const item of itens) {
-        const produto = await Produto.findByPk(item.produtoId);
+        const produto = await Produto.findByPk(String(item.produtoId));
         if (!produto) {
-          res.status(400).json({ message: `Produto ${item.produtoId} não encontrado` });
+          res.status(404).json({ message: `Produto ${item.produtoId} não encontrado` });
+          return;
+        }
+        if (!item.quantidade || item.quantidade <= 0) {
+          res.status(400).json({ message: "Quantidade inválida" });
           return;
         }
         total += produto.preco * item.quantidade;
       }
 
-      const pedido = await Pedido.create({ usuarioId, status: status || "pendente", total });
+      const pedido = await Pedido.create({
+        usuarioId: String(usuarioId),
+        status: status || "pendente",
+        total,
+      });
 
-      // Cria os itens do pedido
       for (const item of itens) {
-        const produto = await Produto.findByPk(item.produtoId);
+        const produto = await Produto.findByPk(String(item.produtoId));
         await PedidoItem.create({
           pedidoId: pedido.id,
-          produtoId: item.produtoId,
+          produtoId: String(item.produtoId),
           quantidade: item.quantidade,
           precoUnitario: produto!.preco,
         });
       }
 
-      // Retorna o pedido completo com itens
       const pedidoCriado = await Pedido.findByPk(pedido.id, {
-        include: [{ model: PedidoItem, as: "itens", include: [{ model: Produto, as: "produto" }] }],
+        include: [
+          {
+            model: PedidoItem,
+            as: "itens",
+            include: [{ model: Produto, as: "produto" }],
+          },
+        ],
       });
 
       res.status(201).json(pedidoCriado);
@@ -118,10 +118,10 @@ class PedidoController {
     }
   }
 
-  // PUT /pedidos/:id
   async update(req: Request, res: Response): Promise<void> {
     try {
-      const pedido = await Pedido.findByPk(req.params.id);
+      const id = String(req.params.id);
+      const pedido = await Pedido.findByPk(id);
 
       if (!pedido) {
         res.status(404).json({ message: "Pedido não encontrado" });
@@ -130,23 +130,28 @@ class PedidoController {
 
       const { status, itens } = req.body;
 
+      const statusValidos = ["pendente", "confirmado", "entregue", "cancelado"];
+      if (status && !statusValidos.includes(status)) {
+        res.status(400).json({ message: "Status inválido" });
+        return;
+      }
+
       if (status) pedido.status = status;
 
-      // Se mandou novos itens, recalcula e substitui
       if (itens && itens.length > 0) {
         await PedidoItem.destroy({ where: { pedidoId: pedido.id } });
 
         let total = 0;
         for (const item of itens) {
-          const produto = await Produto.findByPk(item.produtoId);
+          const produto = await Produto.findByPk(String(item.produtoId));
           if (!produto) {
-            res.status(400).json({ message: `Produto ${item.produtoId} não encontrado` });
+            res.status(404).json({ message: `Produto ${item.produtoId} não encontrado` });
             return;
           }
           total += produto.preco * item.quantidade;
           await PedidoItem.create({
             pedidoId: pedido.id,
-            produtoId: item.produtoId,
+            produtoId: String(item.produtoId),
             quantidade: item.quantidade,
             precoUnitario: produto.preco,
           });
@@ -157,19 +162,25 @@ class PedidoController {
       await pedido.save();
 
       const pedidoAtualizado = await Pedido.findByPk(pedido.id, {
-        include: [{ model: PedidoItem, as: "itens", include: [{ model: Produto, as: "produto" }] }],
+        include: [
+          {
+            model: PedidoItem,
+            as: "itens",
+            include: [{ model: Produto, as: "produto" }],
+          },
+        ],
       });
 
-      res.json(pedidoAtualizado);
+      res.status(200).json(pedidoAtualizado);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar pedido", error });
     }
   }
 
-  // DELETE /pedidos/:id
   async remove(req: Request, res: Response): Promise<void> {
     try {
-      const pedido = await Pedido.findByPk(req.params.id);
+      const id = String(req.params.id);
+      const pedido = await Pedido.findByPk(id);
 
       if (!pedido) {
         res.status(404).json({ message: "Pedido não encontrado" });
