@@ -5,6 +5,7 @@ import Usuario from "../models/Usuario";
 type TokenPayload = {
   id: string;
   email: string;
+  role: string;
 }
 
 export interface AuthRequest extends Request {
@@ -12,7 +13,6 @@ export interface AuthRequest extends Request {
 }
 
 async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
-
   const token = req.headers.authorization;
 
   if (!token) {
@@ -37,7 +37,40 @@ async function authMiddleware(req: AuthRequest, res: Response, next: NextFunctio
 
     req.usuario = decoded;
     return next();
+  } catch (err) {
+    return res.status(401).json({ message: "Token inválido ou expirado" });
+  }
+}
 
+export async function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).json({ message: "Token não fornecido" });
+  }
+
+  const parts = token.split(" ");
+  if (parts.length !== 2) {
+    return res.status(401).json({ message: "Token inválido" });
+  }
+
+  try {
+    const decoded = jwt.verify(
+      parts[1],
+      process.env.JWT_SECRET! as string
+    ) as TokenPayload;
+
+    const usuario = await Usuario.findByPk(decoded.id);
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    if (usuario.role !== "admin") {
+      return res.status(403).json({ message: "Acesso restrito a administradores" });
+    }
+
+    req.usuario = decoded;
+    return next();
   } catch (err) {
     return res.status(401).json({ message: "Token inválido ou expirado" });
   }

@@ -7,6 +7,7 @@ class Usuario extends Model {
   declare email: string;
   declare senha: string;
   declare cpf: string;
+  declare role: "usuario" | "admin";
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -35,6 +36,11 @@ Usuario.init(
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
+    },
+    role: {
+      type: DataTypes.ENUM("usuario", "admin"),
+      defaultValue: "usuario",
+      allowNull: false,
     },
   },
   {
