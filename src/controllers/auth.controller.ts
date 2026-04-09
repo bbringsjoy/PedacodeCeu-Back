@@ -87,4 +87,21 @@ class AuthController {
         token,
         usuario: {
           id: usuario.id,
-          n
+          nome: usuario.nome,
+          email: usuario.email,
+          cpf: usuario.cpf,
+          role: usuario.role,
+        },
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Erro interno" });
+    }
+  }
+}
+
+function validarEmail(email: string): boolean {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
+export default AuthController;
