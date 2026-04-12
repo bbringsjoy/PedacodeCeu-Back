@@ -23,9 +23,9 @@ router.get("/usuarios/:id", authMiddleware, UsuarioController.getById);
 router.put("/usuarios/:id", authMiddleware, UsuarioController.update);
 router.delete("/usuarios/:id", adminMiddleware, UsuarioController.remove);
 
-router.get("/categorias", authMiddleware, CategoriaController.findAll);
+router.get("/categorias", CategoriaController.findAll);
 router.post("/categorias", adminMiddleware, CategoriaController.create);
-router.get("/categorias/:id", authMiddleware, CategoriaController.getById);
+router.get("/categorias/:id", CategoriaController.getById);
 router.put("/categorias/:id", adminMiddleware, CategoriaController.update);
 router.delete("/categorias/:id", adminMiddleware, CategoriaController.remove);
 
