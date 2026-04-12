@@ -1,15 +1,35 @@
 import { Request, Response } from "express";
 import Categoria from "../models/Categoria";
+import { RespostaPaginada } from "../types";
 
 class CategoriaController {
   static async findAll(req: Request, res: Response) {
-    const categorias = await Categoria.findAll();
-    return res.status(200).json(categorias);
+    const pagina = parseInt(req.query.pagina as string) || 1;
+    const limite = parseInt(req.query.limite as string) || 10;
+    const offset = (pagina - 1) * limite;
+
+    const { count, rows } = await Categoria.findAndCountAll({
+      limit: limite,
+      offset,
+      order: [["nome", "ASC"]],
+    });
+
+    const resposta: RespostaPaginada<Categoria> = {
+      dados: rows,
+      meta: {
+        total: count,
+        pagina,
+        limite,
+        totalPaginas: Math.ceil(count / limite),
+      },
+    };
+
+    return res.status(200).json(resposta);
   }
 
   static async getById(req: Request, res: Response) {
     const id = String(req.params.id);
-    const categoria = await Categoria.findByPk(id); 
+    const categoria = await Categoria.findByPk(id);
 
     if (!categoria) {
       return res.status(404).json({ message: "Categoria não encontrada" });
@@ -30,7 +50,7 @@ class CategoriaController {
   }
 
   static async update(req: Request, res: Response) {
-   const id = String(req.params.id);
+    const id = String(req.params.id);
     const { nome } = req.body;
     const categoria = await Categoria.findByPk(id);
 

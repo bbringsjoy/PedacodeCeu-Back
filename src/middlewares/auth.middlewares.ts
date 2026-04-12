@@ -1,15 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import Usuario from "../models/Usuario";
-
-type TokenPayload = {
-  id: string;
-  email: string;
-  role: string;
-}
+import { UsuarioPayload } from "../types";
 
 export interface AuthRequest extends Request {
-  usuario?: TokenPayload;
+  usuario?: UsuarioPayload;
 }
 
 async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
@@ -28,7 +23,7 @@ async function authMiddleware(req: AuthRequest, res: Response, next: NextFunctio
     const decoded = jwt.verify(
       parts[1],
       process.env.JWT_SECRET! as string
-    ) as TokenPayload;
+    ) as UsuarioPayload;
 
     const usuario = await Usuario.findByPk(decoded.id);
     if (!usuario) {
@@ -58,7 +53,7 @@ export async function adminMiddleware(req: AuthRequest, res: Response, next: Nex
     const decoded = jwt.verify(
       parts[1],
       process.env.JWT_SECRET! as string
-    ) as TokenPayload;
+    ) as UsuarioPayload;
 
     const usuario = await Usuario.findByPk(decoded.id);
     if (!usuario) {

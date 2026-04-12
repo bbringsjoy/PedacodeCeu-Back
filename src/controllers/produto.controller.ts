@@ -1,21 +1,39 @@
 import { Request, Response } from "express";
 import Produto from "../models/Produto";
 import Categoria from "../models/Categoria";
+import { RespostaPaginada } from "../types";
 
 class ProdutoController {
   static async findAll(req: Request, res: Response) {
-    const produtos = await Produto.findAll({
+    const pagina = parseInt(req.query.pagina as string) || 1;
+    const limite = parseInt(req.query.limite as string) || 10;
+    const offset = (pagina - 1) * limite;
+
+    const { count, rows } = await Produto.findAndCountAll({
+      limit: limite,
+      offset,
+      order: [["nome", "ASC"]],
       include: [{ model: Categoria, as: "categoria" }],
     });
-    return res.status(200).json(produtos);
+
+    const resposta: RespostaPaginada<Produto> = {
+      dados: rows,
+      meta: {
+        total: count,
+        pagina,
+        limite,
+        totalPaginas: Math.ceil(count / limite),
+      },
+    };
+
+    return res.status(200).json(resposta);
   }
 
   static async getById(req: Request, res: Response) {
-   const id = String(req.params.id);
+    const id = String(req.params.id);
     const produto = await Produto.findByPk(id, {
       include: [{ model: Categoria, as: "categoria" }],
     });
-
 
     if (!produto) {
       return res.status(404).json({ message: "Produto não encontrado" });
@@ -52,6 +70,7 @@ class ProdutoController {
     const id = String(req.params.id);
     const { nome, descricao, preco, imagem, destaque, ativo, categoriaId } = req.body;
     const produto = await Produto.findByPk(id);
+
     if (!produto) {
       return res.status(404).json({ message: "Produto não encontrado" });
     }

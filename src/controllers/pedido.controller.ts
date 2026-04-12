@@ -1,14 +1,27 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import Pedido from "../models/Pedido";
 import PedidoItem from "../models/PedidoItem";
 import Produto from "../models/Produto";
 import Usuario from "../models/Usuario";
+import { AuthRequest } from "../middlewares/auth.middlewares";
+import { RespostaPaginada } from "../types";
 
 class PedidoController {
 
-  async findAll(req: Request, res: Response): Promise<void> {
+  async findAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const pedidos = await Pedido.findAll({
+      const usuarioLogado = req.usuario;
+      const isAdmin = usuarioLogado?.role === "admin";
+      const pagina = parseInt(req.query.pagina as string) || 1;
+      const limite = parseInt(req.query.limite as string) || 10;
+      const offset = (pagina - 1) * limite;
+
+      const where = isAdmin ? {} : { usuarioId: usuarioLogado?.id };
+
+      const { count, rows } = await Pedido.findAndCountAll({
+        where,
+        limit: limite,
+        offset,
         order: [["createdAt", "DESC"]],
         include: [
           {
@@ -23,15 +36,29 @@ class PedidoController {
           },
         ],
       });
-      res.status(200).json(pedidos);
+
+      const resposta: RespostaPaginada<Pedido> = {
+        dados: rows,
+        meta: {
+          total: count,
+          pagina,
+          limite,
+          totalPaginas: Math.ceil(count / limite),
+        },
+      };
+
+      res.status(200).json(resposta);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar pedidos", error });
     }
   }
 
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(req: AuthRequest, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
+      const usuarioLogado = req.usuario;
+      const isAdmin = usuarioLogado?.role === "admin";
+
       const pedido = await Pedido.findByPk(id, {
         include: [
           {
@@ -52,18 +79,24 @@ class PedidoController {
         return;
       }
 
+      if (!isAdmin && pedido.usuarioId !== usuarioLogado?.id) {
+        res.status(403).json({ message: "Acesso negado" });
+        return;
+      }
+
       res.status(200).json(pedido);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar pedido", error });
     }
   }
 
-  async create(req: Request, res: Response): Promise<void> {
+  async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { usuarioId, status, itens } = req.body;
+      const { status, itens } = req.body;
+      const usuarioId = req.usuario?.id;
 
       if (!usuarioId) {
-        res.status(400).json({ message: "usuarioId é obrigatório" });
+        res.status(401).json({ message: "Usuário não autenticado" });
         return;
       }
 
@@ -86,11 +119,7 @@ class PedidoController {
         total += produto.preco * item.quantidade;
       }
 
-      const pedido = await Pedido.create({
-        usuarioId: String(usuarioId),
-        status: status || "pendente",
-        total,
-      });
+      const pedido = await Pedido.create({ usuarioId, status: status || "pendente", total });
 
       for (const item of itens) {
         const produto = await Produto.findByPk(String(item.produtoId));
@@ -103,13 +132,7 @@ class PedidoController {
       }
 
       const pedidoCriado = await Pedido.findByPk(pedido.id, {
-        include: [
-          {
-            model: PedidoItem,
-            as: "itens",
-            include: [{ model: Produto, as: "produto" }],
-          },
-        ],
+        include: [{ model: PedidoItem, as: "itens", include: [{ model: Produto, as: "produto" }] }],
       });
 
       res.status(201).json(pedidoCriado);
@@ -118,9 +141,11 @@ class PedidoController {
     }
   }
 
-  async update(req: Request, res: Response): Promise<void> {
+  async update(req: AuthRequest, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
+      const usuarioLogado = req.usuario;
+      const isAdmin = usuarioLogado?.role === "admin";
       const pedido = await Pedido.findByPk(id);
 
       if (!pedido) {
@@ -128,9 +153,14 @@ class PedidoController {
         return;
       }
 
-      const { status, itens } = req.body;
+      if (!isAdmin && pedido.usuarioId !== usuarioLogado?.id) {
+        res.status(403).json({ message: "Acesso negado" });
+        return;
+      }
 
+      const { status, itens } = req.body;
       const statusValidos = ["pendente", "confirmado", "entregue", "cancelado"];
+
       if (status && !statusValidos.includes(status)) {
         res.status(400).json({ message: "Status inválido" });
         return;
@@ -162,13 +192,7 @@ class PedidoController {
       await pedido.save();
 
       const pedidoAtualizado = await Pedido.findByPk(pedido.id, {
-        include: [
-          {
-            model: PedidoItem,
-            as: "itens",
-            include: [{ model: Produto, as: "produto" }],
-          },
-        ],
+        include: [{ model: PedidoItem, as: "itens", include: [{ model: Produto, as: "produto" }] }],
       });
 
       res.status(200).json(pedidoAtualizado);
@@ -177,9 +201,11 @@ class PedidoController {
     }
   }
 
-  async remove(req: Request, res: Response): Promise<void> {
+  async remove(req: AuthRequest, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
+      const usuarioLogado = req.usuario;
+      const isAdmin = usuarioLogado?.role === "admin";
       const pedido = await Pedido.findByPk(id);
 
       if (!pedido) {
@@ -187,9 +213,13 @@ class PedidoController {
         return;
       }
 
+      if (!isAdmin && pedido.usuarioId !== usuarioLogado?.id) {
+        res.status(403).json({ message: "Acesso negado" });
+        return;
+      }
+
       await PedidoItem.destroy({ where: { pedidoId: pedido.id } });
       await pedido.destroy();
-
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Erro ao deletar pedido", error });
