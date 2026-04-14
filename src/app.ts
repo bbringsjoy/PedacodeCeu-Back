@@ -22,6 +22,7 @@ router.get("/usuarios", authMiddleware, UsuarioController.findAll);
 router.get("/usuarios/:id", authMiddleware, UsuarioController.getById);
 router.put("/usuarios/:id", authMiddleware, UsuarioController.update);
 router.delete("/usuarios/:id", adminMiddleware, UsuarioController.remove);
+router.patch("/usuarios/:id/role", adminMiddleware, UsuarioController.updateRole);
 
 router.get("/categorias", CategoriaController.findAll);
 router.post("/categorias", adminMiddleware, CategoriaController.create);

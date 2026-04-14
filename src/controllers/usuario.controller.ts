@@ -36,7 +36,10 @@ class UsuarioController {
     }
 
     if (!senha || !validarSenha(senha)) {
-      return res.status(400).json({ message: "A senha deve ter no mínimo 8 caracteres, letra maiúscula, minúscula, número e caractere especial" });
+      return res.status(400).json({
+        message:
+          "A senha deve ter no mínimo 8 caracteres, letra maiúscula, minúscula, número e caractere especial",
+      });
     }
 
     if (!cpf || !validarCPF(cpf)) {
@@ -54,7 +57,12 @@ class UsuarioController {
     }
 
     const senhaCriptografada = await bcrypt.hash(senha, 10);
-    const usuario = await Usuario.create({ nome, email, senha: senhaCriptografada, cpf });
+    const usuario = await Usuario.create({
+      nome,
+      email,
+      senha: senhaCriptografada,
+      cpf,
+    });
 
     return res.status(201).json({
       id: usuario.id,
@@ -70,7 +78,9 @@ class UsuarioController {
     const { nome, senha, cpf } = req.body;
 
     if (req.usuario?.id !== id) {
-      return res.status(403).json({ message: "Você não tem permissão para editar este usuário" });
+      return res.status(403).json({
+        message: "Você não tem permissão para editar este usuário",
+      });
     }
 
     const usuario = await Usuario.findByPk(id);
@@ -83,7 +93,10 @@ class UsuarioController {
     }
 
     if (!senha || !validarSenha(senha)) {
-      return res.status(400).json({ message: "A senha deve ter no mínimo 8 caracteres, letra maiúscula, minúscula, número e caractere especial" });
+      return res.status(400).json({
+        message:
+          "A senha deve ter no mínimo 8 caracteres, letra maiúscula, minúscula, número e caractere especial",
+      });
     }
 
     if (!cpf || !validarCPF(cpf)) {
@@ -99,6 +112,30 @@ class UsuarioController {
       email: usuario.email,
       cpf: usuario.cpf,
       updatedAt: usuario.updatedAt,
+    });
+  }
+
+  // ✅ NOVO MÉTODO ADICIONADO
+  static async updateRole(req: AuthRequest, res: Response) {
+    const id = String(req.params.id);
+    const { role } = req.body;
+
+    if (!role || !["usuario", "admin"].includes(role)) {
+      return res.status(400).json({ message: "Role inválido" });
+    }
+
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    await usuario.update({ role });
+
+    return res.status(200).json({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      role: usuario.role,
     });
   }
 
